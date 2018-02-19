@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
 	struct sockaddr_in server;
 	char   *host, *bp, rbuf[BUFLEN], sbuf[BUFLEN], **pptr;
 	char   str[16];
+  size_t n = 0;
 
   switch(argc) {
     case 2:
@@ -57,11 +58,13 @@ int main(int argc, char **argv) {
   printf("\t\tIP Address: %s\n", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)));
 	printf("Transmit:\n");
 
-  fgets(sbuf, BUFLEN, stdin);
+  //fgets(sbuf, BUFLEN, stdin);
+  sbuf[0] = 'H';
+  sbuf[1] = '\0';
 
   send(sd, sbuf, BUFLEN, 0);
 
-  printf("Receive:\n");
+  printf("Recieved:\n");
 	bp = rbuf;
 	bytes_to_read = BUFLEN;
 
@@ -70,5 +73,6 @@ int main(int argc, char **argv) {
 
   fflush(stdout);
   close(sd);
+
   return(0);
 }

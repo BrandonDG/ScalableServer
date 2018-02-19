@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,6 +11,8 @@
 #define SERVER_TCP_PORT 8005
 #define BUFLEN 80
 #define TRUE 1
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char **argv) {
   int    sd, new_sd, client_len, port;
