@@ -14,11 +14,19 @@
 
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
+void *client_function(void*);
+
+typedef struct thread_param {
+  int socket;
+  char *ip;
+} thread_param;
+
 int main(int argc, char **argv) {
-  int    sd, new_sd, client_len, port;
-  int    bytes_to_read;
-  char   *bp, buf[BUFLEN];
+  int                sd, new_sd, client_len, port;
+  //int                bytes_to_read;
+  //char               *bp, buf[BUFLEN], lbuf[BUFLEN];
   struct sockaddr_in server, client;
+  FILE               *fp;
 
   switch (argc) {
     case 1:
@@ -32,6 +40,12 @@ int main(int argc, char **argv) {
       exit(1);
     break;
   }
+
+  if ((fp = fopen("server_results", "w")) == 0) {
+    fprintf(stderr, "server fopen\n");
+    exit(1);
+  }
+  fclose(fp);
 
   if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror("Failed to create socket");
@@ -55,14 +69,36 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Can't accept client\n");
       exit(1);
     }
-
-    printf(" Remote Address: %s\n", inet_ntoa(client.sin_addr));
-    bp = buf;
-    bytes_to_read = BUFLEN;
-    recv(new_sd, bp, bytes_to_read, MSG_WAITALL);
-    printf("Sending: %s\n", buf);
-
-    send(new_sd, buf, BUFLEN, 0);
-    close(new_sd);
+    pthread_t client_thread;
+    struct thread_param thp;
+    thp.socket = new_sd;
+    thp.ip = inet_ntoa(client.sin_addr);
+    pthread_create(&client_thread, NULL, client_function, &thp);
+    pthread_join(client_thread, NULL);
   }
+  return 0;
+}
+
+void *client_function(void *thp) {
+  char *bp, buf[BUFLEN], lbuf[BUFLEN];
+  int  bytes_to_read;
+  FILE *fp;
+  if ((fp = fopen("server_results", "a")) == 0) {
+    fprintf(stderr, "server fopen\n");
+    exit(1);
+  }
+
+  struct thread_param *local_thp = thp;
+
+  bp = buf;
+  bytes_to_read = BUFLEN;
+  recv(local_thp->socket, bp, bytes_to_read, MSG_WAITALL);
+  send(local_thp->socket, buf, BUFLEN, 0);
+
+  sprintf(lbuf, "%s %u %ld", local_thp->ip, pthread_self(), sizeof(buf));
+  printf("%s\n", lbuf);
+  fprintf(fp, "%s\n", lbuf);
+
+  close(local_thp->socket);
+  fclose(fp);
 }
