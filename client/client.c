@@ -10,10 +10,11 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <sys/time.h>
+#include <string.h>
 #include <omp.h>
 
 #define SERVER_TCP_PORT 8005
-#define BUFLEN			    1024
+#define BUFLEN			    80
 #define TRUE            1
 
 int main(int argc, char **argv) {
@@ -24,6 +25,7 @@ int main(int argc, char **argv) {
 	char               *host, *bp, **pptr;
 	char               str[16], rbuf[BUFLEN], lbuf[BUFLEN];
   FILE               *fp;
+  size_t             data_sent = 0;
 
   cn = 1;
 
@@ -48,7 +50,7 @@ int main(int argc, char **argv) {
   }
 
   omp_set_num_threads(cn);
-  #pragma omp parallel private(sd)
+  #pragma omp parallel private(sd, lbuf, data_sent)
   {
     /*
     if ((fp = fopen("client_results", "a")) == 0) {
@@ -77,9 +79,11 @@ int main(int argc, char **argv) {
     pptr = hp->h_addr_list;
 
     //sbuf = "Hello, my name is Brandon\0";
-    char sbuf[BUFLEN] = { 'A' };
-
-    while (TRUE) {
+    //char sbuf[BUFLEN] = { 'A' };
+    char sbuf[BUFLEN];
+    memset(sbuf, 'A', BUFLEN);
+    sbuf[BUFLEN - 1] = '\0';
+    while (data_sent < 5000000) {
       gettimeofday(&begin, NULL);
       send(sd, sbuf, BUFLEN, 0);
 
@@ -95,8 +99,31 @@ int main(int argc, char **argv) {
       sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
                 sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
       printf("%s\n", lbuf);
+      data_sent += sizeof(sbuf);
     }
+    sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
+              sd, data_sent, (end.tv_sec - begin.tv_sec), n);
     fprintf(fp, "%s\n", lbuf);
+    /*
+    char sbuf[BUFLEN];
+    memset(sbuf, 'A', BUFLEN);
+    sbuf[BUFLEN - 1] = '\0';
+    gettimeofday(&begin, NULL);
+    send(sd, sbuf, BUFLEN, 0);
+
+    bp = rbuf;
+    bytes_to_read = BUFLEN;
+    recv(sd, bp, bytes_to_read, MSG_WAITALL);
+    gettimeofday(&end, NULL);
+
+    n = end.tv_usec - begin.tv_usec;
+    if (n < 0) {
+      n *= - 1;
+    }
+    sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
+              sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
+    printf("%s\n", lbuf);
+    fprintf(fp, "%s\n", lbuf); */
 
     fflush(stdout);
     close(sd);

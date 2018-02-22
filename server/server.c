@@ -1,4 +1,3 @@
-//#include <pthread.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,26 +9,16 @@
 #include <omp.h>
 
 #define SERVER_TCP_PORT 8005
-#define BUFLEN          1024
+#define BUFLEN          80
 #define TRUE            1
-
-//pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-void *client_function(void*);
-
-typedef struct thread_param {
-  int socket;
-  char *ip;
-} thread_param;
 
 int main(int argc, char **argv) {
   int                sd, new_sd, client_len, port;
-  int                bytes_to_read, thread_num;
+  int                bytes_to_read, thread_num, e;
   char               *bp, buf[BUFLEN], lbuf[BUFLEN];
   struct sockaddr_in server, client;
   FILE               *fp;
-  int e;
-
+  size_t data_sent = 0;
   thread_num = 0;
 
   switch (argc) {
@@ -67,7 +56,7 @@ int main(int argc, char **argv) {
 
   listen(sd, 4096);
 
-  #pragma omp parallel private(thread_num, new_sd, fp)
+  #pragma omp parallel private(thread_num, new_sd, fp, lbuf)
   {
     while (TRUE) {
       client_len = sizeof(client);
@@ -86,7 +75,9 @@ int main(int argc, char **argv) {
         send(new_sd, buf, BUFLEN, 0);
         sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, sizeof(buf));
         printf("%s\n", lbuf);
+        data_sent += sizeof(lbuf);
       }
+      sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, data_sent);
       fprintf(fp, "%s\n", lbuf);
 
       close(new_sd);
