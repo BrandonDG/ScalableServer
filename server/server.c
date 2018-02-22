@@ -80,31 +80,9 @@ int main(int argc, char **argv) {
         exit(1);
       }
       thread_num = omp_get_thread_num() + 1;
-      // Tomorrow try while (recv) so maybe when the conncetion is broken
-      // it will stop. We'll see if that works.
-      // Or give a maximum amount of data sent before it cuts out, would have to
-      // be consistent on both client and server
-      /*
-      while (TRUE) {
-        bp = buf;
-        bytes_to_read = BUFLEN;
-        recv(new_sd, bp, bytes_to_read, MSG_WAITALL);
-        send(new_sd, buf, BUFLEN, 0);
-        sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, sizeof(buf));
-        printf("%s\n", lbuf);
-      } */
-      /*
-      bp = buf;
-      bytes_to_read = BUFLEN;
-      recv(new_sd, bp, bytes_to_read, MSG_WAITALL);
-      send(new_sd, buf, BUFLEN, 0);
-      sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, sizeof(buf));
-      printf("%s\n", lbuf);
-      fprintf(fp, "%s\n", lbuf); */
       bp = buf;
       bytes_to_read = BUFLEN;
       while ((e = recv(new_sd, bp, bytes_to_read, MSG_WAITALL)) > 0) {
-        //recv(new_sd, bp, bytes_to_read, MSG_WAITALL);
         send(new_sd, buf, BUFLEN, 0);
         sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, sizeof(buf));
         printf("%s\n", lbuf);
@@ -117,27 +95,3 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
-/*
-void *client_function(void *thp) {
-  char *bp, buf[BUFLEN], lbuf[BUFLEN];
-  int  bytes_to_read;
-  FILE *fp;
-  if ((fp = fopen("server_results", "a")) == 0) {
-    fprintf(stderr, "server fopen\n");
-    exit(1);
-  }
-
-  struct thread_param *local_thp = thp;
-
-  bp = buf;
-  bytes_to_read = BUFLEN;
-  recv(local_thp->socket, bp, bytes_to_read, MSG_WAITALL);
-  send(local_thp->socket, buf, BUFLEN, 0);
-
-  sprintf(lbuf, "%s %u %ld", local_thp->ip, pthread_self(), sizeof(buf));
-  printf("%s\n", lbuf);
-  fprintf(fp, "%s\n", lbuf);
-
-  close(local_thp->socket);
-  fclose(fp);
-} */

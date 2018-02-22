@@ -96,23 +96,6 @@ int main(int argc, char **argv) {
                 sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
       printf("%s\n", lbuf);
     }
-
-    /*
-    gettimeofday(&begin, NULL);
-    send(sd, sbuf, BUFLEN, 0);
-
-    bp = rbuf;
-    bytes_to_read = BUFLEN;
-    recv(sd, bp, bytes_to_read, MSG_WAITALL);
-    gettimeofday(&end, NULL);
-
-    n = end.tv_usec - begin.tv_usec;
-    if (n < 0) {
-      n *= - 1;
-    }
-    sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
-              sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
-    printf("%s\n", lbuf); */
     fprintf(fp, "%s\n", lbuf);
 
     fflush(stdout);
