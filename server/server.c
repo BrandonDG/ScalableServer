@@ -4,9 +4,11 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <omp.h>
+#include <errno.h>
 
 #define SERVER_TCP_PORT 8005
 #define BUFLEN          80
@@ -18,7 +20,7 @@ int main(int argc, char **argv) {
   char               *bp, buf[BUFLEN], lbuf[BUFLEN];
   struct sockaddr_in server, client;
   FILE               *fp;
-  size_t data_sent = 0;
+  size_t data_sent;
   thread_num = 0;
 
   switch (argc) {
@@ -55,15 +57,22 @@ int main(int argc, char **argv) {
   }
 
   listen(sd, 4096);
-
-  #pragma omp parallel private(thread_num, new_sd, fp, lbuf)
+  omp_set_num_threads(500);
+  #pragma omp parallel private(thread_num, new_sd, fp, lbuf, client, data_sent)
   {
+    /*
+    if ((fp = fopen("server_results", "a")) == 0) {
+      fprintf(stderr, "server fopen\n");
+      exit(1);
+    } */
     while (TRUE) {
+      data_sent = 0;
       client_len = sizeof(client);
       if ((new_sd = accept(sd, (struct sockaddr *)&client, &client_len)) == -1) {
         fprintf(stderr, "Can't accept client\n");
         exit(1);
       }
+
       if ((fp = fopen("server_results", "a")) == 0) {
         fprintf(stderr, "server fopen\n");
         exit(1);
@@ -77,12 +86,20 @@ int main(int argc, char **argv) {
         printf("%s\n", lbuf);
         data_sent += sizeof(lbuf);
       }
-      sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, data_sent);
-      fprintf(fp, "%s\n", lbuf);
+      if (e == -1) {
+        //sprintf(lbuf, "Connection Error");
+        //fprintf(fp, "%s\n", lbuf);
+        fprintf(fp, "Error: %s\n", strerror(errno));
+        perror("Connection Error");
+      } else {
+        sprintf(lbuf, "%s %u %ld", inet_ntoa(client.sin_addr), thread_num, data_sent);
+        fprintf(fp, "%s\n", lbuf);
+      }
 
       close(new_sd);
       fclose(fp);
     }
+    //fclose(fp);
   }
   return 0;
 }

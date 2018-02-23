@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 	struct hostent	   *hp;
 	struct sockaddr_in server;
   struct timeval     begin, end;
-  int                sd, port, bytes_to_read, n, cn;
+  int                sd, port, bytes_to_read, n, cn, e;
 	char               *host, *bp, **pptr;
 	char               str[16], rbuf[BUFLEN], lbuf[BUFLEN];
   FILE               *fp;
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
   }
 
   omp_set_num_threads(cn);
-  #pragma omp parallel private(sd, lbuf, data_sent)
+  #pragma omp parallel private(sd, lbuf, data_sent, e)
   {
     /*
     if ((fp = fopen("client_results", "a")) == 0) {
@@ -78,8 +78,7 @@ int main(int argc, char **argv) {
     }
     pptr = hp->h_addr_list;
 
-    //sbuf = "Hello, my name is Brandon\0";
-    //char sbuf[BUFLEN] = { 'A' };
+    /*
     char sbuf[BUFLEN];
     memset(sbuf, 'A', BUFLEN);
     sbuf[BUFLEN - 1] = '\0';
@@ -89,22 +88,28 @@ int main(int argc, char **argv) {
 
     	bp = rbuf;
     	bytes_to_read = BUFLEN;
-      recv(sd, bp, bytes_to_read, MSG_WAITALL);
+      e = recv(sd, bp, bytes_to_read, MSG_WAITALL);
       gettimeofday(&end, NULL);
 
       n = end.tv_usec - begin.tv_usec;
       if (n < 0) {
         n *= - 1;
       }
+      if (e == -1) break;
       sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
                 sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
       printf("%s\n", lbuf);
       data_sent += sizeof(sbuf);
     }
-    sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
-              sd, data_sent, (end.tv_sec - begin.tv_sec), n);
-    fprintf(fp, "%s\n", lbuf);
-    /*
+    if (e == -1) {
+      fprintf(fp, "Error: %s\n", strerror(errno));
+      perror("Connection Error");
+    } else {
+      sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
+                sd, data_sent, (end.tv_sec - begin.tv_sec), n);
+      fprintf(fp, "%s\n", lbuf);
+    } */
+
     char sbuf[BUFLEN];
     memset(sbuf, 'A', BUFLEN);
     sbuf[BUFLEN - 1] = '\0';
@@ -113,17 +118,22 @@ int main(int argc, char **argv) {
 
     bp = rbuf;
     bytes_to_read = BUFLEN;
-    recv(sd, bp, bytes_to_read, MSG_WAITALL);
+    e = recv(sd, bp, bytes_to_read, MSG_WAITALL);
     gettimeofday(&end, NULL);
 
     n = end.tv_usec - begin.tv_usec;
     if (n < 0) {
       n *= - 1;
     }
-    sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
-              sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
-    printf("%s\n", lbuf);
-    fprintf(fp, "%s\n", lbuf); */
+    if (e == -1) {
+      fprintf(fp, "Error: %s\n", strerror(errno));
+      perror("Connection Error");
+    } else {
+      sprintf(lbuf, "%s %d %ld %lu.%06d", inet_ntop(hp->h_addrtype, *pptr, str, sizeof(str)),
+                sd, sizeof(sbuf), (end.tv_sec - begin.tv_sec), n);
+      printf("%s\n", lbuf);
+      fprintf(fp, "%s\n", lbuf);
+    }
 
     fflush(stdout);
     close(sd);
