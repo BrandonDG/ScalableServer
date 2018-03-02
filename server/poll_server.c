@@ -1,16 +1,16 @@
 /*-----------------------------------------------------------------------
---	SOURCE FILE: poll_server.c
+--  SOURCE FILE: poll_server.c
 --
---	PROGRAM:     poll_svr.exe
+--  PROGRAM:     poll_svr.exe
 --
---	DATE:		 February 25, 2018
+--  DATE:     February 25, 2018
 --
---	DESIGNERS:	 Brandon Gillespie & Justen DePourcq
+--  DESIGNERS:   Brandon Gillespie & Justen DePourcq
 --
---	PROGRAMMERS: Justen DePourcq
+--  PROGRAMMERS: Justen DePourcq
 --
---	NOTES:
---	Poll Server for Assignment 2 in COMP8005 BCIT Btech Network
+--  NOTES:
+--  Poll Server for Assignment 2 in COMP8005 BCIT Btech Network
 --  Security and Administration
 -----------------------------------------------------------------------*/
 #include <limits.h>
@@ -32,16 +32,16 @@
 #define TRUE            1
 
 /*-----------------------------------------------------------------------
---	FUNCTION:	  SystemFatal
+--  FUNCTION:    SystemFatal
 --
---	DATE:       February 25, 2018
+--  DATE:       February 25, 2018
 --
---	INTERFACE:	static void SystemFatal(const char* message)
+--  INTERFACE:  static void SystemFatal(const char* message)
 --
---	RETURNS:    void
+--  RETURNS:    void
 --
---	NOTES:
---	Displays error message in perror and exits the application.
+--  NOTES:
+--  Displays error message in perror and exits the application.
 -----------------------------------------------------------------------*/
 static void SystemFatal(const char* message) {
     perror(message);
@@ -49,20 +49,20 @@ static void SystemFatal(const char* message) {
 }
 
 /*-----------------------------------------------------------------------
---	FUNCTION:	  main
+--  FUNCTION:    main
 --
---	DATE:       February 25, 2018
+--  DATE:       February 25, 2018
 --
---	DESIGNER:   Brandon Gillespie & Justen DePourcq
+--  DESIGNER:   Brandon Gillespie & Justen DePourcq
 --
---  PROGRAMMER:	Justen DePourcq
+--  PROGRAMMER:  Justen DePourcq
 --
---	INTERFACE:	int main (int argc, char **argv)
+--  INTERFACE:  int main (int argc, char **argv)
 --
---	RETURNS:    int
+--  RETURNS:    int
 --
---	NOTES:
---	main.
+--  NOTES:
+--  main.
 -----------------------------------------------------------------------*/
 int main(int argc, char **argv) {
     int i, max, server_fd, new_sd, sockfd;
@@ -74,19 +74,19 @@ int main(int argc, char **argv) {
     FILE *fp;
 
     switch(argc) {
-		  case 1:
-			  port = SERVER_TCP_PORT;
-		    break;
-		  case 2:
-			  port = atoi(argv[1]);
-		    break;
-		  default:
-			  fprintf(stderr, "Usage: %s [port]\n", argv[0]);
-			  exit(1);
-	  }
+      case 1:
+        port = SERVER_TCP_PORT;
+        break;
+      case 2:
+        port = atoi(argv[1]);
+        break;
+      default:
+        fprintf(stderr, "Usage: %s [port]\n", argv[0]);
+        exit(1);
+    }
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		  SystemFatal("Cannot Create Socket!");
+      SystemFatal("Cannot Create Socket!");
     }
 
     arg = 1;
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
     server.sin_port = htons(port);
 
     if (bind(server_fd, (struct sockaddr *)&server, sizeof(server)) == -1) {
-		  SystemFatal("bind error");
+      SystemFatal("bind error");
     }
 
     listen(server_fd, LISTENQ);
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
       if (client[0].revents & POLLRDNORM) {
         client_len = sizeof(client_addr);
         if ((new_sd = accept(server_fd, (struct sockaddr *) &client_addr, &client_len)) == -1) {
-			     SystemFatal("accept error");
+           SystemFatal("accept error");
         }
 
         for (i = 1; i < MAXFD; i++)

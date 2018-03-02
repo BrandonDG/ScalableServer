@@ -1,16 +1,16 @@
 /*-----------------------------------------------------------------------
---	SOURCE FILE: epoll_server.c
+--  SOURCE FILE: epoll_server.c
 --
---	PROGRAM:     epoll_svr.exe
+--  PROGRAM:     epoll_svr.exe
 --
---	DATE:		     February 25, 2018
+--  DATE:         February 25, 2018
 --
---	DESIGNERS:	 Brandon Gillespie & Justen DePourcq
+--  DESIGNERS:   Brandon Gillespie & Justen DePourcq
 --
---	PROGRAMMERS: Brandon Gillespie
+--  PROGRAMMERS: Brandon Gillespie
 --
---	NOTES:
---	Epoll Server for Assignment 2 in COMP8005 BCIT Btech Network
+--  NOTES:
+--  Epoll Server for Assignment 2 in COMP8005 BCIT Btech Network
 --  Security and Administration
 -----------------------------------------------------------------------*/
 #include <stdio.h>
@@ -31,51 +31,51 @@
 #define MAXEVENTS       2000
 
 /*-----------------------------------------------------------------------
---	FUNCTION:	  setup_socket
+--  FUNCTION:    setup_socket
 --
---	DATE:       February 28, 2018
+--  DATE:       February 28, 2018
 --
---	INTERFACE:	static int setup_socket(int port)
+--  INTERFACE:  static int setup_socket(int port)
 --
---	RETURNS:    int
+--  RETURNS:    int
 --
---	NOTES:
---	Create and binds the server socket.
+--  NOTES:
+--  Create and binds the server socket.
 -----------------------------------------------------------------------*/
 static int setup_socket(int port) {
   int fd_server, arg;
   struct sockaddr_in addr;
 
-	if ((fd_server = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		return(-1);
-	}
+  if ((fd_server = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    return(-1);
+  }
 
-	arg = 1;
-	if (setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1) {
-		return(-1);
-	}
+  arg = 1;
+  if (setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1) {
+    return(-1);
+  }
 
-	memset(&addr, 0, sizeof(struct sockaddr_in));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	addr.sin_port = htons(port);
-	if (bind(fd_server, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
-		return -1;
-	}
+  memset(&addr, 0, sizeof(struct sockaddr_in));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_port = htons(port);
+  if (bind(fd_server, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
+    return -1;
+  }
   return(fd_server);
 }
 
 /*-----------------------------------------------------------------------
---	FUNCTION:	  SystemFatal
+--  FUNCTION:    SystemFatal
 --
---	DATE:       February 25, 2018
+--  DATE:       February 25, 2018
 --
---	INTERFACE:	static void SystemFatal(const char* message)
+--  INTERFACE:  static void SystemFatal(const char* message)
 --
---	RETURNS:    void
+--  RETURNS:    void
 --
---	NOTES:
---	Displays error message in perror and exits the application.
+--  NOTES:
+--  Displays error message in perror and exits the application.
 -----------------------------------------------------------------------*/
 static void SystemFatal(const char* message) {
   perror(message);
@@ -83,20 +83,20 @@ static void SystemFatal(const char* message) {
 }
 
 /*-----------------------------------------------------------------------
---	FUNCTION:	  main
+--  FUNCTION:    main
 --
---	DATE:       February 25, 2018
+--  DATE:       February 25, 2018
 --
---	DESIGNER:   Brandon Gillespie & Justen DePourcq
+--  DESIGNER:   Brandon Gillespie & Justen DePourcq
 --
---  PROGRAMMER:	Brandon Gillespie
+--  PROGRAMMER:  Brandon Gillespie
 --
---	INTERFACE:	int main (int argc, char **argv)
+--  INTERFACE:  int main (int argc, char **argv)
 --
---	RETURNS:    int
+--  RETURNS:    int
 --
---	NOTES:
---	main.
+--  NOTES:
+--  main.
 -----------------------------------------------------------------------*/
 int main(int argc, char *argv[]) {
   int server_fd, s, epoll_fd, port;
@@ -142,14 +142,14 @@ int main(int argc, char *argv[]) {
   events = calloc(MAXEVENTS, sizeof event);
 
   if ((fp = fopen("epoll_server_results", "w")) == 0) {
-	  fprintf(stderr, "server fopen\n");
-	  exit(1);
+    fprintf(stderr, "server fopen\n");
+    exit(1);
   }
   fclose(fp);
 
   if ((fp = fopen("epoll_server_results", "a")) == 0) {
-	  fprintf(stderr, "server fopen\n");
-	  exit(1);
+    fprintf(stderr, "server fopen\n");
+    exit(1);
   }
 
   while (TRUE) {
@@ -157,17 +157,17 @@ int main(int argc, char *argv[]) {
 
     n = epoll_wait(epoll_fd, events, MAXEVENTS, -1);
     for (i = 0; i < n; i++) {
-		  if (events[i].events & (EPOLLHUP | EPOLLERR)) {
-    	  close (events[i].data.fd);
-    	  continue;
-    	} else if (server_fd == events[i].data.fd) {
-    	    while (TRUE) {
-    	      struct sockaddr_in remote_addr;
-    	      socklen_t addr_size;
-    	      int new_sd;
+      if (events[i].events & (EPOLLHUP | EPOLLERR)) {
+        close (events[i].data.fd);
+        continue;
+      } else if (server_fd == events[i].data.fd) {
+          while (TRUE) {
+            struct sockaddr_in remote_addr;
+            socklen_t addr_size;
+            int new_sd;
 
-    	      addr_size = sizeof(remote_addr);
-    	      new_sd = accept(server_fd, (struct sockaddr*) &remote_addr, &addr_size);
+            addr_size = sizeof(remote_addr);
+            new_sd = accept(server_fd, (struct sockaddr*) &remote_addr, &addr_size);
             if (new_sd == -1) {
               if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 perror("accept");
@@ -179,48 +179,48 @@ int main(int argc, char *argv[]) {
               SystemFatal("fcntl");
             }
             
-  	        event.data.fd = new_sd;
+            event.data.fd = new_sd;
             event.events = EPOLLIN | EPOLLET;
               if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_sd, &event) == -1) {
                 SystemFatal("epoll_ctl");
               }
               printf(" Remote Address:  %s\n", inet_ntoa(remote_addr.sin_addr));
-    	      }
-    	      continue;
-    	    } else {
-				    int f;
-				    ssize_t n, data_sent;
-				    f = data_sent = 0;
-		        while (TRUE) {
-		          char buf[BUFLEN];
+            }
+            continue;
+          } else {
+            int f;
+            ssize_t n, data_sent;
+            f = data_sent = 0;
+            while (TRUE) {
+              char buf[BUFLEN];
 
-		          n = read(events[i].data.fd, buf, sizeof buf);
-		          if (n == -1) {
-		            if (errno != EAGAIN) {
-		              perror("read");
-		              f = 1;
-		            }
-		            break;
-		          } else if (n == 0) {
-		            f = 1;
-		            break;
-		          }
-				      data_sent += sizeof(buf);
+              n = read(events[i].data.fd, buf, sizeof buf);
+              if (n == -1) {
+                if (errno != EAGAIN) {
+                  perror("read");
+                  f = 1;
+                }
+                break;
+              } else if (n == 0) {
+                f = 1;
+                break;
+              }
+              data_sent += sizeof(buf);
 
-		          s = write(events[i].data.fd, buf, n);
-		          if (s == -1) {
-		            perror("write");
-		            SystemFatal("write");
-		          }
-		        }
+              s = write(events[i].data.fd, buf, n);
+              if (s == -1) {
+                perror("write");
+                SystemFatal("write");
+              }
+            }
 
-				    sprintf(lbuf, "Socket: %u   Amount of Data: %ld", events[i].data.fd, data_sent);
-				    printf("%s\n", lbuf);
-				    fprintf(fp, "%s\n", lbuf);
+            sprintf(lbuf, "Socket: %u   Amount of Data: %ld", events[i].data.fd, data_sent);
+            printf("%s\n", lbuf);
+            fprintf(fp, "%s\n", lbuf);
 
-		        if (f) {
-		          close(events[i].data.fd);
-		        }
+            if (f) {
+              close(events[i].data.fd);
+            }
           }
     }
   }
