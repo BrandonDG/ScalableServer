@@ -1,222 +1,233 @@
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netinet/in.h>
+/*-----------------------------------------------------------------------
+--	SOURCE FILE: epoll_server.c
+--
+--	PROGRAM:     epoll_svr.exe
+--
+--	DATE:		     February 25, 2018
+--
+--	DESIGNERS:	 Brandon Gillespie & Justen DePourcq
+--
+--	PROGRAMMERS: Brandon Gillespie
+--
+--	NOTES:
+--	Epoll Server for Assignment 2 in COMP8005 BCIT Btech Network
+--  Security and Administration
+-----------------------------------------------------------------------*/
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/sysinfo.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <strings.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <signal.h>
-#include <pthread.h>
 
-#include <omp.h>
+#define SERVER_TCP_PORT 7000
+#define TRUE            1
+#define BUFLEN          80
+#define MAXEVENTS       2000
 
-#define TRUE 		        1
-#define FALSE 		      0
-#define EPOLL_QUEUE_LEN	256
-#define BUFLEN		      80
-#define SERVER_PORT	    8005
+/*-----------------------------------------------------------------------
+--	FUNCTION:	  setup_socket
+--
+--	DATE:       February 28, 2018
+--
+--	INTERFACE:	static int setup_socket(int port)
+--
+--	RETURNS:    int
+--
+--	NOTES:
+--	Create and binds the server socket.
+-----------------------------------------------------------------------*/
+static int setup_socket(int port) {
+  int fd_server, arg;
+  struct sockaddr_in addr;
 
-int fd_server;
+	if ((fd_server = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		return(-1);
+	}
 
-static void  system_fatal(const char* message);
-       void* clear_socket(void* fd);
-static int   clear_socket2(int fd);
-       void  close_fd(int);
-
-int main (int argc, char* argv[]) {
-	int                       i, arg, threads_amount;
-	int                       num_fds, fd_new, epoll_fd;
-	static struct epoll_event events[EPOLL_QUEUE_LEN], event;
-	int                       port = SERVER_PORT;
-	struct sockaddr_in        addr, remote_addr;
-	socklen_t                 addr_size = sizeof(struct sockaddr_in);
-	struct sigaction          act;
-
-	// set up the signal handler to close the server socket when CTRL-c is received
-  act.sa_handler = close_fd;
-  act.sa_flags = 0;
-  if ((sigemptyset(&act.sa_mask) == -1 || sigaction (SIGINT, &act, NULL) == -1)) {
-    perror ("Failed to set SIGINT handler");
-    exit (EXIT_FAILURE);
-  }
-
-	// Create the listening socket
-	fd_server = socket(AF_INET, SOCK_STREAM, 0);
-	if (fd_server == -1) {
-    system_fatal("socket");
-  }
-
-	// set SO_REUSEADDR so port can be resused imemediately after exit, i.e., after CTRL-c
 	arg = 1;
 	if (setsockopt(fd_server, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1) {
-    system_fatal("setsockopt");
-  }
+		return(-1);
+	}
 
-	// Make the server listening socket non-blocking
-	if (fcntl(fd_server, F_SETFL, O_NONBLOCK | fcntl (fd_server, F_GETFL, 0)) == -1) {
-    system_fatal("fcntl");
-  }
-
-	// Bind to the specified listening port
 	memset(&addr, 0, sizeof(struct sockaddr_in));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(port);
 	if (bind(fd_server, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
-    system_fatal("bind");
+		return -1;
+	}
+  return(fd_server);
+}
+
+/*-----------------------------------------------------------------------
+--	FUNCTION:	  SystemFatal
+--
+--	DATE:       February 25, 2018
+--
+--	INTERFACE:	static void SystemFatal(const char* message)
+--
+--	RETURNS:    void
+--
+--	NOTES:
+--	Displays error message in perror and exits the application.
+-----------------------------------------------------------------------*/
+static void SystemFatal(const char* message) {
+  perror(message);
+  exit(EXIT_FAILURE);
+}
+
+/*-----------------------------------------------------------------------
+--	FUNCTION:	  main
+--
+--	DATE:       February 25, 2018
+--
+--	DESIGNER:   Brandon Gillespie & Justen DePourcq
+--
+--  PROGRAMMER:	Brandon Gillespie
+--
+--	INTERFACE:	int main (int argc, char **argv)
+--
+--	RETURNS:    int
+--
+--	NOTES:
+--	main.
+-----------------------------------------------------------------------*/
+int main(int argc, char *argv[]) {
+  int server_fd, s, epoll_fd, port;
+  struct epoll_event event, *events;
+  FILE *fp;
+  char lbuf[BUFLEN];
+
+  switch (argc) {
+    case 1:
+      port = SERVER_TCP_PORT;
+    break;
+    case 2:
+      port = atoi(argv[1]);
+    break;
+    default:
+      fprintf(stderr, "[command] [port]\n");
+      exit(1);
+    break;
   }
 
-	// Make threads for applications
-	/*
-	threads_amount = get_nprocs();
-	pthread_t threads[threads_amount];
-	for (size_t i = 0; i < threads_amount; i++) {
-		pthread_create(&threads[i], NULL, &clear_socket(), );
-	} */
-
-	// Listen for fd_news; SOMAXCONN is 128 by default
-	if (listen(fd_server, SOMAXCONN) == -1) {
-    system_fatal("listen");
+  if ((server_fd = setup_socket(port)) == -1) {
+    SystemFatal("socket");
   }
 
-	// Create the epoll file descriptor
-	epoll_fd = epoll_create(EPOLL_QUEUE_LEN);
-	if (epoll_fd == -1) {
-		system_fatal("epoll_create");
-	}
+  if (fcntl(server_fd, F_SETFL, O_NONBLOCK | fcntl (server_fd, F_GETFL, 0)) == -1) {
+    SystemFatal("fcntl");
+  }
 
-	// Add the server socket to the epoll event loop
-	event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
-	event.data.fd = fd_server;
-	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_server, &event) == -1) {
-		system_fatal("epoll_ctl");
-	}
+  if (listen(server_fd, SOMAXCONN) == -1) {
+    SystemFatal("listen");
+  }
 
-  // Execute the epoll event loop
-	while (TRUE) {
-		//struct epoll_event events[MAX_EVENTS];
-		num_fds = epoll_wait(epoll_fd, events, EPOLL_QUEUE_LEN, -1);
-		if (num_fds < 0) {
-			system_fatal("Error in epoll_wait!");
-		}
+  if ((epoll_fd = epoll_create1(0)) == -1) {
+    SystemFatal("epoll_create");
+  }
 
-		//omp_set_num_threads(8);
-		//#pragma omp parallel private(fd_new)
-		//{
-			//#pragma omp for
-			for (i = 0; i < num_fds; i++) {
-	  		// Case 1: Error condition
-	  		if (events[i].events & (EPOLLHUP | EPOLLERR)) {
-					fputs("epoll: EPOLLERR\n", stderr);
-					close(events[i].data.fd);
-					continue;
-	  		}
-	  		assert(events[i].events & EPOLLIN);
+  event.data.fd = server_fd;
+  event.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP;
+  if ((s = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_fd, &event)) == -1) {
+    SystemFatal("epoll_ctl");
+  }
 
-	  		// Case 2: Server is receiving a connection request
-	  		if (events[i].data.fd == fd_server) {
-					//socklen_t addr_size = sizeof(remote_addr);
-					fd_new = accept(fd_server, (struct sockaddr*) &remote_addr, &addr_size);
-					if (fd_new == -1) {
-			    			if (errno != EAGAIN && errno != EWOULDBLOCK) {
-									perror("accept");
-			    			}
-			    			continue;
-					}
+  events = calloc(MAXEVENTS, sizeof event);
 
-					// Make the fd_new non-blocking
-					if (fcntl(fd_new, F_SETFL, O_NONBLOCK | fcntl(fd_new, F_GETFL, 0)) == -1) {
-						system_fatal("fcntl");
-					}
+  if ((fp = fopen("epoll_server_results", "w")) == 0) {
+	  fprintf(stderr, "server fopen\n");
+	  exit(1);
+  }
+  fclose(fp);
 
-					// Add the new socket descriptor to the epoll loop
-					event.data.fd = fd_new;
-					if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd_new, &event) == -1) {
-						system_fatal("epoll_ctl");
-					}
-					printf(" Remote Address:  %s\n", inet_ntoa(remote_addr.sin_addr));
-					continue;
-	  		}
+  if ((fp = fopen("epoll_server_results", "a")) == 0) {
+	  fprintf(stderr, "server fopen\n");
+	  exit(1);
+  }
 
-				/*
-				#pragma single
-				{
-					//printf("%d\n", omp_get_thread_num());
-		  		// Case 3: One of the sockets has read data
-		  		if (!clear_socket2(events[i].data.fd)) {
-						// epoll will remove the fd from its set
-						// automatically when the fd is closed
-						close(events[i].data.fd);
-		  		}
-				} */
+  while (TRUE) {
+    int n, i;
 
+    n = epoll_wait(epoll_fd, events, MAXEVENTS, -1);
+    for (i = 0; i < n; i++) {
+		  if (events[i].events & (EPOLLHUP | EPOLLERR)) {
+    	  close (events[i].data.fd);
+    	  continue;
+    	} else if (server_fd == events[i].data.fd) {
+    	    while (TRUE) {
+    	      struct sockaddr_in remote_addr;
+    	      socklen_t addr_size;
+    	      int new_sd;
 
-				pthread_t new_thread;
-				pthread_create(&new_thread, NULL, clear_socket, &(events[i].data.fd));
-				pthread_join(new_thread, NULL);
-			//}
-		}
-	}
-	close(fd_server);
-	exit(EXIT_SUCCESS);
-}
+    	      addr_size = sizeof(remote_addr);
+    	      new_sd = accept(server_fd, (struct sockaddr*) &remote_addr, &addr_size);
+            if (new_sd == -1) {
+              if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                perror("accept");
+              }
+              break;
+            }
 
-void* clear_socket(void* gfd) {
-	int	 n, bytes_to_read;
-	char *bp, buf[BUFLEN];
-	int *fd = gfd;
+            if (fcntl(new_sd, F_SETFL, O_NONBLOCK | fcntl (server_fd, F_GETFL, 0)) == -1) {
+              SystemFatal("fcntl");
+            }
+            
+  	        event.data.fd = new_sd;
+            event.events = EPOLLIN | EPOLLET;
+              if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, new_sd, &event) == -1) {
+                SystemFatal("epoll_ctl");
+              }
+              printf(" Remote Address:  %s\n", inet_ntoa(remote_addr.sin_addr));
+    	      }
+    	      continue;
+    	    } else {
+				    int f;
+				    ssize_t n, data_sent;
+				    f = data_sent = 0;
+		        while (TRUE) {
+		          char buf[BUFLEN];
 
-	//printf("%d\n", pthread_self());
+		          n = read(events[i].data.fd, buf, sizeof buf);
+		          if (n == -1) {
+		            if (errno != EAGAIN) {
+		              perror("read");
+		              f = 1;
+		            }
+		            break;
+		          } else if (n == 0) {
+		            f = 1;
+		            break;
+		          }
+				      data_sent += sizeof(buf);
 
-	while (TRUE) {
-		bp = buf;
-		bytes_to_read = BUFLEN;
+		          s = write(events[i].data.fd, buf, n);
+		          if (s == -1) {
+		            perror("write");
+		            SystemFatal("write");
+		          }
+		        }
 
-		while ((n = recv(*fd, bp, bytes_to_read, MSG_WAITALL)) > 0) {
-			printf("sending:%s\n", buf);
-			send(*fd, buf, BUFLEN, 0);
-		}
-		close(*fd);
-		return (void*)TRUE;
-	}
-	close(*fd);
-	return(0);
-}
+				    sprintf(lbuf, "Socket: %u   Amount of Data: %ld", events[i].data.fd, data_sent);
+				    printf("%s\n", lbuf);
+				    fprintf(fp, "%s\n", lbuf);
 
-static int clear_socket2(int fd) {
-	int	 n, bytes_to_read;
-	char *bp, buf[BUFLEN];
+		        if (f) {
+		          close(events[i].data.fd);
+		        }
+          }
+    }
+  }
 
-	while (TRUE) {
-		bp = buf;
-		bytes_to_read = BUFLEN;
+  free(events);
 
-		while ((n = recv(fd, bp, bytes_to_read, MSG_WAITALL)) > 0) {
-			printf("sending:%s\n", buf);
-			send(fd, buf, BUFLEN, 0);
-		}
-		close(fd);
-		return TRUE;
-	}
-	close(fd);
-	return(0);
-}
-
-static void system_fatal(const char* message) {
-    perror(message);
-    exit(EXIT_FAILURE);
-}
-
-void close_fd(int signo) {
-  close(fd_server);
-	exit(EXIT_SUCCESS);
+  close(server_fd);
+  fclose(fp);
+  return 0;
 }
